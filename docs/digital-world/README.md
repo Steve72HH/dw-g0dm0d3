@@ -13,6 +13,7 @@ This folder contains Digital World specific documentation for G0DM0D3-DW.
 - windows-quickstart.md - Windows development quickstart
 - debian-quickstart.md - Debian server quickstart
 - test-plan.md - basic validation and release checks
+- runtime-audit.md - local runtime audit procedure
 
 ## Project Direction
 
