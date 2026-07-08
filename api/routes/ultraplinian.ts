@@ -45,8 +45,15 @@ import { recordEvent, categorizeError } from '../lib/metadata'
 
 export const ultraplinianRoutes = Router()
 
+type ParseltongueSummary = {
+  triggers_found: string[]
+  technique_used: string
+  transformations_count: number
+}
+
 ultraplinianRoutes.post('/completions', async (req, res) => {
   const startTime = Date.now()
+  let streamResponse = true
 
   try {
     const {
@@ -79,6 +86,8 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
       // Dataset opt-in
       contribute_to_dataset = false,
     } = req.body
+
+    streamResponse = Boolean(stream)
 
     // Validate
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -189,7 +198,7 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
     }
 
     // ── Parseltongue ─────────────────────────────────────────────────
-    let parseltongueResult = null
+    let parseltongueResult: ParseltongueSummary | null = null
     let processedMessages = baseMessages
 
     if (parseltongue) {
@@ -504,14 +513,25 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
         mode: 'ultraplinian-failed',
         tier,
         stream,
+        pipeline: {
+          godmode,
+          autotune: !!autotuneResult,
+          parseltongue: !!parseltongueResult,
+          stm_modules: stm_modules || [],
+          strategy,
+        },
         models_queried: models.length,
         models_succeeded: scoredResults.filter(r => r.success).length,
         model_results: scoredResults.map(r => ({
-          model: r.model, score: r.score, duration_ms: r.duration_ms,
-          success: r.success, content_length: r.content?.length || 0,
+          model: r.model,
+          score: r.score,
+          duration_ms: r.duration_ms,
+          success: r.success,
+          content_length: r.content?.length || 0,
           error_type: r.error ? categorizeError(r.error) : undefined,
         })),
         total_duration_ms: Date.now() - startTime,
+        response_length: 0,
       })
       res.status(502).json({
         error: 'All models failed in ULTRAPLINIAN mode',
@@ -631,10 +651,22 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
     recordEvent({
       endpoint: '/v1/ultraplinian/completions',
       mode: 'ultraplinian-error',
-      error_type: 'internal_error',
+      tier: undefined,
+      stream: streamResponse,
+      pipeline: {
+        godmode: false,
+        autotune: false,
+        parseltongue: false,
+        stm_modules: [],
+        strategy: 'unknown',
+      },
+      models_queried: 0,
+      models_succeeded: 0,
+      model_results: [],
       total_duration_ms: Date.now() - startTime,
+      response_length: 0,
     })
-    if (stream) {
+    if (streamResponse) {
       try {
         res.write(`event: race:error\ndata: ${JSON.stringify({ error: 'Internal server error' })}\n\n`)
         res.end()

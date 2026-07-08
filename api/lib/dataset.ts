@@ -1,3 +1,12 @@
+type AutoTuneParamRecord = Record<
+  'temperature' |
+  'top_p' |
+  'top_k' |
+  'frequency_penalty' |
+  'presence_penalty' |
+  'repetition_penalty',
+  number
+>
 /**
  * Open Dataset Collection Engine
  *
@@ -33,7 +42,7 @@ export interface DatasetEntry {
   // Request metadata
   endpoint: string  // which API endpoint was called
   model: string
-  mode: 'standard' | 'ultraplinian'
+  mode: 'standard' | 'ultraplinian' | 'consortium'
 
   // Messages (stripped of system prompts to avoid leaking custom prompts)
   messages: Array<{ role: string; content: string }>
@@ -44,7 +53,7 @@ export interface DatasetEntry {
     strategy: string
     detected_context: string
     confidence: number
-    params: Record<string, number>
+    params: AutoTuneParamRecord
     reasoning: string
   }
 
@@ -182,3 +191,6 @@ export function getDatasetStats(): {
     newest_entry: dataset.length > 0 ? dataset[dataset.length - 1].timestamp : null,
   }
 }
+
+
+

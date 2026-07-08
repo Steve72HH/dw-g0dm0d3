@@ -57,7 +57,7 @@ export interface CorpusQuery {
   since?: number       // unix ms
   until?: number       // unix ms
   model?: string       // filter by model
-  mode?: 'standard' | 'ultraplinian'
+  mode?: 'standard' | 'ultraplinian' | 'consortium'
   limit?: number       // max records to return
   offset?: number
 }
@@ -93,9 +93,9 @@ const MAX_BATCH_CACHE = 50
 
 function evictStaleCache() {
   const now = Date.now()
-  for (const [key, entry] of batchContentCache) {
+  batchContentCache.forEach((entry, key) => {
     if (entry.expires < now) batchContentCache.delete(key)
-  }
+  })
 }
 
 // ── Core: List Files in HF Repo ──────────────────────────────────────
@@ -325,3 +325,6 @@ export async function getCorpusStats(): Promise<CorpusStats> {
 // ── Force Flush (trigger publisher from research API) ────────────────
 
 export { flushMetadata, flushDataset } from './hf-publisher'
+
+
+

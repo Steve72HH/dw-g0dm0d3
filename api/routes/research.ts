@@ -50,7 +50,7 @@ researchRoutes.get('/info', (_req, res) => {
         timestamp: 'number (unix ms)',
         endpoint: 'string',
         model: 'string (OpenRouter model ID)',
-        mode: '"standard" | "ultraplinian"',
+        mode: '"standard" | "ultraplinian" | "consortium"',
         messages: 'Array<{ role: string, content: string }>',
         response: 'string',
         autotune: '{ strategy, detected_context, confidence, params, reasoning } | null',
@@ -63,7 +63,7 @@ researchRoutes.get('/info', (_req, res) => {
         id: 'string (UUID)',
         timestamp: 'number (unix ms)',
         endpoint: 'string',
-        mode: '"standard" | "ultraplinian"',
+        mode: '"standard" | "ultraplinian" | "consortium"',
         tier: 'string | null',
         stream: 'boolean',
         pipeline: '{ godmode, autotune, parseltongue, stm_modules, strategy }',
@@ -158,7 +158,12 @@ researchRoutes.get('/batches', async (req, res) => {
 
 researchRoutes.get('/batch/*', async (req, res) => {
   try {
-    const filePath = req.params[0]
+    const params = req.params as Record<string, string | string[] | undefined>
+    const rawFilePath = params[0] ?? params['']
+    const filePath = Array.isArray(rawFilePath)
+      ? rawFilePath.join('/')
+      : rawFilePath
+
     if (!filePath || !filePath.endsWith('.jsonl')) {
       res.status(400).json({ error: 'Invalid batch path. Expected: metadata/batch_*.jsonl or dataset/batch_*.jsonl' })
       return
@@ -190,7 +195,7 @@ researchRoutes.get('/query', tierGate('research:full'), async (req, res) => {
       since: req.query.since ? parseInt(String(req.query.since)) : undefined,
       until: req.query.until ? parseInt(String(req.query.until)) : undefined,
       model: req.query.model as string | undefined,
-      mode: req.query.mode as 'standard' | 'ultraplinian' | undefined,
+      mode: req.query.mode as 'standard' | 'ultraplinian' | 'consortium' | undefined,
       limit: Math.min(parseInt(String(req.query.limit)) || 100, 1000),
       offset: parseInt(String(req.query.offset)) || 0,
     }
@@ -275,3 +280,5 @@ researchRoutes.get('/download', tierGate('corpus:download'), async (req, res) =>
     }
   }
 })
+
+
