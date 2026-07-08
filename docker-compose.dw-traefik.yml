@@ -1,0 +1,33 @@
+services:
+  g0dm0d3-dw:
+    image: g0dm0d3-dw:latest
+    container_name: g0dm0d3-dw
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      - "traefik.http.routers.g0dm0d3-dw.rule=Host(`godmode.digital-world.dev`)"
+      - "traefik.http.routers.g0dm0d3-dw.entrypoints=websecure"
+      - "traefik.http.routers.g0dm0d3-dw.tls=true"
+      - "traefik.http.routers.g0dm0d3-dw.tls.certresolver=le"
+
+      - "traefik.http.services.g0dm0d3-dw.loadbalancer.server.port=3000"
+
+      - "traefik.http.routers.g0dm0d3-dw.middlewares=g0dm0d3-dw-headers,g0dm0d3-dw-compress"
+
+      - "traefik.http.middlewares.g0dm0d3-dw-compress.compress=true"
+
+      - "traefik.http.middlewares.g0dm0d3-dw-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.g0dm0d3-dw-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.g0dm0d3-dw-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.g0dm0d3-dw-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.g0dm0d3-dw-headers.headers.permissionsPolicy=camera=(), microphone=(), geolocation=()"
+
+networks:
+  proxy:
+    external: true
