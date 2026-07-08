@@ -1,6 +1,7 @@
 param(
     [switch]$RunNpmInstall,
-    [switch]$RunBuild
+    [switch]$RunBuild,
+    [switch]$CheckDockerCompose
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +17,27 @@ function Write-Section {
 function Test-CommandExists {
     param([string]$Command)
     $null -ne (Get-Command $Command -ErrorAction SilentlyContinue)
+}
+
+function Invoke-NativeCheck {
+    param(
+        [string]$Description,
+        [scriptblock]$Command
+    )
+
+    Write-Host ""
+    Write-Host $Description
+
+    & $Command
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0 -or $null -eq $exitCode) {
+        Write-Host "[OK] $Description"
+        return $true
+    }
+
+    Write-Warning "[FAILED] $Description exited with code $exitCode"
+    return $false
 }
 
 Write-Section "G0DM0D3-DW Runtime Audit"
@@ -124,20 +146,49 @@ if (Test-Path ".env.example") {
         }
     }
 }
+else {
+    Write-Warning ".env.example not found."
+}
+
+Write-Section "Local .env Check"
+
+if (Test-Path ".env") {
+    Write-Host "[OK] .env exists locally."
+}
+else {
+    Write-Warning ".env does not exist locally. This is normal for a fresh clone."
+    Write-Host "Create it with:"
+    Write-Host "  Copy-Item .env.example .env"
+}
 
 Write-Section "Docker Compose Config Check"
 
-if ((Test-CommandExists docker) -and (Test-Path "docker-compose.dw-traefik.yml")) {
-    docker compose -f docker-compose.dw-traefik.yml config | Out-Null
-    Write-Host "[OK] docker-compose.dw-traefik.yml is syntactically valid."
+if (-not $CheckDockerCompose) {
+    Write-Host "Skipping Docker Compose config validation by default."
+    Write-Host "Use -CheckDockerCompose after creating a local .env file."
+}
+elseif (-not (Test-CommandExists docker)) {
+    Write-Warning "Docker was not found."
+}
+elseif (-not (Test-Path "docker-compose.dw-traefik.yml")) {
+    Write-Warning "docker-compose.dw-traefik.yml missing."
+}
+elseif (-not (Test-Path ".env")) {
+    Write-Warning "Skipping Docker Compose validation because .env is missing."
+    Write-Host "Create it with:"
+    Write-Host "  Copy-Item .env.example .env"
 }
 else {
-    Write-Warning "Docker unavailable or docker-compose.dw-traefik.yml missing."
+    Invoke-NativeCheck "docker-compose.dw-traefik.yml config validation" {
+        docker compose -f docker-compose.dw-traefik.yml config | Out-Null
+    } | Out-Null
 }
 
 if ($RunNpmInstall) {
     Write-Section "npm install"
-    npm install
+    Invoke-NativeCheck "npm install" {
+        npm install
+    } | Out-Null
 }
 else {
     Write-Host ""
@@ -146,7 +197,9 @@ else {
 
 if ($RunBuild) {
     Write-Section "npm build"
-    npm run build
+    Invoke-NativeCheck "npm run build" {
+        npm run build
+    } | Out-Null
 }
 else {
     Write-Host ""
