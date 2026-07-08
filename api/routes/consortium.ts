@@ -29,6 +29,7 @@ import { computeAutoTuneParams, type AutoTuneStrategy } from '../../src/lib/auto
 import { applyParseltongue, type ParseltongueConfig } from '../../src/lib/parseltongue'
 import { allModules, applySTMs, type STMModule } from '../../src/stm/modules'
 import { getSharedProfiles } from './autotune'
+import { ContextType } from '../../src/lib/autotune'
 import {
   GODMODE_SYSTEM_PROMPT,
   DEPTH_DIRECTIVE,
@@ -148,8 +149,10 @@ consortiumRoutes.post('/completions', async (req, res) => {
     // ── AutoTune ──────────────────────────────────────────────────────
     const conversationHistory = normalizedMessages
       .filter(m => m.role !== 'system')
-      .map(m => m.content)
-      .join('\n')
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+      }))
 
     let autotuneResult: any = null
     let computedParams: Record<string, number | undefined> = {
@@ -162,12 +165,19 @@ consortiumRoutes.post('/completions', async (req, res) => {
         ? strategy as AutoTuneStrategy
         : 'adaptive' as AutoTuneStrategy
 
-      autotuneResult = computeAutoTuneParams(
-        userContent,
+      autotuneResult = computeAutoTuneParams({
+        strategy: validStrategy,
+        message: userContent,
         conversationHistory,
-        validStrategy,
-        getSharedProfiles(),
-      )
+        overrides: {
+          ...(top_p !== undefined && { top_p }),
+          ...(top_k !== undefined && { top_k }),
+          ...(frequency_penalty !== undefined && { frequency_penalty }),
+          ...(presence_penalty !== undefined && { presence_penalty }),
+          ...(repetition_penalty !== undefined && { repetition_penalty }),
+        },
+        learnedProfiles: getSharedProfiles(),
+      })
 
       computedParams = {
         temperature: temperature ?? autotuneResult.params.temperature,
@@ -195,16 +205,16 @@ consortiumRoutes.post('/completions', async (req, res) => {
         intensity: parseltongue_intensity,
         customTriggers: [],
       }
-      const transformed = applyParseltongue(userContent, config)
-      if (transformed.transformed) {
+            const result = applyParseltongue(userContent, config)
+      if (result.triggersFound.length > 0) {
         parseltongueResult = {
-          triggers_found: transformed.triggersFound,
-          technique_used: parseltongue_technique,
-          transformations_count: transformed.triggersFound.length,
+          triggers_found: result.triggersFound,
+          technique_used: result.techniqueUsed,
+          transformations_count: result.transformations.length,
         }
         processedMessages = baseMessages.map(m => {
           if (m.content === userContent) {
-            return { ...m, content: transformed.text }
+            return { ...m, content: result.transformedText }
           }
           return m
         })
@@ -624,3 +634,6 @@ consortiumRoutes.post('/completions', async (req, res) => {
     }
   }
 })
+
+
+

@@ -51,6 +51,7 @@ feedbackRoutes.post('/', (req, res) => {
       })
       return
     }
+    const contextType = context_type as ContextType
 
     if (rating !== 1 && rating !== -1) {
       res.status(400).json({ error: 'rating must be 1 (positive) or -1 (negative)' })
@@ -70,7 +71,7 @@ feedbackRoutes.post('/', (req, res) => {
     const record: FeedbackRecord = {
       messageId: message_id,
       timestamp: Date.now(),
-      contextType: context_type,
+      contextType: contextType,
       model: String(model),
       persona: String(persona),
       params: params as AutoTuneParams,
@@ -84,12 +85,15 @@ feedbackRoutes.post('/', (req, res) => {
     // Sync learned profiles to the AutoTune route
     updateSharedProfiles(feedbackState.learnedProfiles)
 
+    const learnedProfile = feedbackState.learnedProfiles[contextType]
+
     res.json({
       accepted: true,
       total_feedback: feedbackState.history.length,
-      context_type,
-      learned: feedbackState.learnedProfiles[context_type].sampleCount >= 3,
+      context_type: contextType,
+      learned: learnedProfile.sampleCount >= 3,
     })
+    
   } catch (err: any) {
     console.error('[feedback]', err)
     res.status(500).json({ error: 'Internal server error' })

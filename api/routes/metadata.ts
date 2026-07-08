@@ -26,7 +26,7 @@ metadataRoutes.get('/events', tierGate('metadata:events'), (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit)) || 100, 1000)
   const offset = parseInt(String(req.query.offset)) || 0
   const since = parseInt(String(req.query.since)) || undefined
-  const mode = req.query.mode as 'standard' | 'ultraplinian' | undefined
+  const mode = req.query.mode as 'standard' | 'ultraplinian' | 'consortium' | undefined
 
   const result = getEvents({ limit, offset, since, mode })
   res.json({
@@ -37,3 +37,5 @@ metadataRoutes.get('/events', tierGate('metadata:events'), (req, res) => {
     has_more: offset + limit < result.total,
   })
 })
+
+

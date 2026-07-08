@@ -34,7 +34,7 @@ export interface MetadataEvent {
 
   // Request shape
   endpoint: string
-  mode: 'standard' | 'ultraplinian' | 'consortium'
+  mode: 'standard' | 'ultraplinian' | 'consortium' | 'ultraplinian-failed' | 'ultraplinian-error' | 'standard-error' | 'consortium-error'
   tier?: string // fast | standard | full (ultraplinian only)
   stream: boolean
 
@@ -152,7 +152,7 @@ export function getEvents(opts?: {
   limit?: number
   offset?: number
   since?: number // unix ms timestamp
-  mode?: 'standard' | 'ultraplinian'
+  mode?: 'standard' | 'ultraplinian' | 'consortium' | 'ultraplinian-failed' | 'ultraplinian-error' | 'standard-error' | 'consortium-error'
 }): { events: MetadataEvent[]; total: number } {
   let filtered = events
 
@@ -420,3 +420,7 @@ function percentileFromSorted(sorted: number[], p: number): number {
   const idx = Math.ceil((p / 100) * sorted.length) - 1
   return sorted[Math.max(0, idx)]
 }
+
+
+
+
