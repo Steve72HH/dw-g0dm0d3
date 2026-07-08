@@ -61,3 +61,13 @@ Do not use this project to generate harmful content, bypass security systems, vi
 This project is licensed under the **GNU Affero General Public License v3.0**, following the upstream project.
 
 See [`LICENSE`](./LICENSE).
+
+---
+
+## Digital World Documentation
+
+Additional Digital World specific documentation is available in:
+
+[`docs/digital-world`](./docs/digital-world)
+
+This includes deployment notes, privacy guidance, local Ollama notes, responsible red-team workflows, provider security notes, and the project roadmap.
