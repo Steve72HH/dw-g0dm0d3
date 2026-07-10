@@ -35,7 +35,6 @@ import {
   getModelsForTier,
   scoreResponse,
   applyGodmodeBoost,
-  queryModel,
   type SpeedTier,
   type ModelResult,
 } from '../lib/ultraplinian'
@@ -51,6 +50,13 @@ import { addEntry } from '../lib/dataset'
 import { recordEvent, categorizeError } from '../lib/metadata'
 
 export const consortiumRoutes = Router()
+
+type ParseltongueSummary = {
+  triggers_found: string[]
+  technique_used: string
+  transformations_count: number
+}
+
 
 consortiumRoutes.post('/completions', async (req, res) => {
   const startTime = Date.now()
@@ -148,8 +154,10 @@ consortiumRoutes.post('/completions', async (req, res) => {
     // ── AutoTune ──────────────────────────────────────────────────────
     const conversationHistory = normalizedMessages
       .filter(m => m.role !== 'system')
-      .map(m => m.content)
-      .join('\n')
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+      }))
 
     let autotuneResult: any = null
     let computedParams: Record<string, number | undefined> = {
@@ -162,12 +170,19 @@ consortiumRoutes.post('/completions', async (req, res) => {
         ? strategy as AutoTuneStrategy
         : 'adaptive' as AutoTuneStrategy
 
-      autotuneResult = computeAutoTuneParams(
-        userContent,
+      autotuneResult = computeAutoTuneParams({
+        strategy: validStrategy,
+        message: userContent,
         conversationHistory,
-        validStrategy,
-        getSharedProfiles(),
-      )
+        overrides: {
+          ...(top_p !== undefined && { top_p }),
+          ...(top_k !== undefined && { top_k }),
+          ...(frequency_penalty !== undefined && { frequency_penalty }),
+          ...(presence_penalty !== undefined && { presence_penalty }),
+          ...(repetition_penalty !== undefined && { repetition_penalty }),
+        },
+        learnedProfiles: getSharedProfiles(),
+      })
 
       computedParams = {
         temperature: temperature ?? autotuneResult.params.temperature,
@@ -185,7 +200,7 @@ consortiumRoutes.post('/completions', async (req, res) => {
       : computedParams
 
     // ── Parseltongue ──────────────────────────────────────────────────
-    let parseltongueResult: any = null
+    let parseltongueResult: ParseltongueSummary | null = null
     let processedMessages = baseMessages
 
     if (parseltongue) {
@@ -195,20 +210,22 @@ consortiumRoutes.post('/completions', async (req, res) => {
         intensity: parseltongue_intensity,
         customTriggers: [],
       }
-      const transformed = applyParseltongue(userContent, config)
-      if (transformed.transformed) {
-        parseltongueResult = {
-          triggers_found: transformed.triggersFound,
-          technique_used: parseltongue_technique,
-          transformations_count: transformed.triggersFound.length,
-        }
-        processedMessages = baseMessages.map(m => {
-          if (m.content === userContent) {
-            return { ...m, content: transformed.text }
+
+      processedMessages = baseMessages.map(m => {
+        if (m.role === 'user') {
+          const result = applyParseltongue(m.content, config)
+          if (!parseltongueResult && result.triggersFound.length > 0) {
+            parseltongueResult = {
+              triggers_found: result.triggersFound,
+              technique_used: result.techniqueUsed,
+              transformations_count: result.transformations.length,
+            }
           }
-          return m
-        })
-      }
+          return { ...m, content: result.transformedText }
+        }
+
+        return m
+      })
     }
 
     // ── Get models for tier ───────────────────────────────────────────

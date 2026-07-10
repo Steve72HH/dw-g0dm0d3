@@ -189,7 +189,11 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
     }
 
     // ── Parseltongue ─────────────────────────────────────────────────
-    let parseltongueResult = null
+    let parseltongueResult: {
+      triggers_found: string[]
+      technique_used: string
+      transformations_count: number
+    } | null = null
     let processedMessages = baseMessages
 
     if (parseltongue) {
@@ -504,6 +508,13 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
         mode: 'ultraplinian-failed',
         tier,
         stream,
+        pipeline: {
+          godmode,
+          autotune: !!autotuneResult,
+          parseltongue: !!parseltongueResult,
+          stm_modules: stm_modules || [],
+          strategy,
+        },
         models_queried: models.length,
         models_succeeded: scoredResults.filter(r => r.success).length,
         model_results: scoredResults.map(r => ({
@@ -512,6 +523,7 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
           error_type: r.error ? categorizeError(r.error) : undefined,
         })),
         total_duration_ms: Date.now() - startTime,
+        response_length: 0,
       })
       res.status(502).json({
         error: 'All models failed in ULTRAPLINIAN mode',
@@ -628,13 +640,26 @@ ultraplinianRoutes.post('/completions', async (req, res) => {
     })
   } catch (err: any) {
     console.error('[ultraplinian]', err)
+
     recordEvent({
       endpoint: '/v1/ultraplinian/completions',
       mode: 'ultraplinian-error',
-      error_type: 'internal_error',
+      stream: false,
+      pipeline: {
+        godmode: false,
+        autotune: false,
+        parseltongue: false,
+        stm_modules: [],
+        strategy: 'unknown',
+      },
+      models_queried: 0,
+      models_succeeded: 0,
+      model_results: [],
       total_duration_ms: Date.now() - startTime,
+      response_length: 0,
     })
-    if (stream) {
+
+    if (res.headersSent) {
       try {
         res.write(`event: race:error\ndata: ${JSON.stringify({ error: 'Internal server error' })}\n\n`)
         res.end()

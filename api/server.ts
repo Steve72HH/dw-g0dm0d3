@@ -138,11 +138,11 @@ app.get('/v1/info', (_req, res) => {
 // Enterprise users need this for SDK model discovery
 
 app.get('/v1/models', (_req, res) => {
-  const allModels = [
-    ...ULTRAPLINIAN_MODELS.fast,
-    ...ULTRAPLINIAN_MODELS.standard,
-    ...ULTRAPLINIAN_MODELS.full,
-  ]
+  const allModels = Array.from(new Set(
+    Object.values(ULTRAPLINIAN_MODELS)
+      .flat()
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  ))
 
   const created = Math.floor(Date.now() / 1000)
 
@@ -185,7 +185,7 @@ app.get('/v1/models', (_req, res) => {
 // ── Tier Info Endpoint (authenticated) ────────────────────────────────
 app.get('/v1/tier', apiKeyAuth, (req, res) => {
   const tier = req.tier || 'free'
-  const config: TierConfig = req.tierConfig
+  const config: TierConfig = req.tierConfig ?? TIER_CONFIGS[tier as keyof typeof TIER_CONFIGS] ?? TIER_CONFIGS.free
   res.json({
     tier: config.name,
     label: config.label,
@@ -311,3 +311,6 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 export default app
+
+
+
