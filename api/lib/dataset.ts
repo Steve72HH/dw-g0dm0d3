@@ -22,6 +22,7 @@
  */
 
 import { randomUUID } from 'crypto'
+import type { AutoTuneParams } from '../../src/lib/autotune'
 import { registerDatasetStore, checkDatasetThreshold } from './hf-publisher'
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ export interface DatasetEntry {
   // Request metadata
   endpoint: string  // which API endpoint was called
   model: string
-  mode: 'standard' | 'ultraplinian'
+  mode: 'standard' | 'ultraplinian' | 'consortium'
 
   // Messages (stripped of system prompts to avoid leaking custom prompts)
   messages: Array<{ role: string; content: string }>
@@ -44,7 +45,7 @@ export interface DatasetEntry {
     strategy: string
     detected_context: string
     confidence: number
-    params: Record<string, number>
+    params: AutoTuneParams
     reasoning: string
   }
 
@@ -182,3 +183,5 @@ export function getDatasetStats(): {
     newest_entry: dataset.length > 0 ? dataset[dataset.length - 1].timestamp : null,
   }
 }
+
+

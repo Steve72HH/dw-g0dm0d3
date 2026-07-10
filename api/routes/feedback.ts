@@ -70,7 +70,7 @@ feedbackRoutes.post('/', (req, res) => {
     const record: FeedbackRecord = {
       messageId: message_id,
       timestamp: Date.now(),
-      contextType: context_type,
+      contextType: context_type as ContextType,
       model: String(model),
       persona: String(persona),
       params: params as AutoTuneParams,
@@ -87,8 +87,8 @@ feedbackRoutes.post('/', (req, res) => {
     res.json({
       accepted: true,
       total_feedback: feedbackState.history.length,
-      context_type,
-      learned: feedbackState.learnedProfiles[context_type].sampleCount >= 3,
+      context_type: context_type as ContextType,
+      learned: feedbackState.learnedProfiles[context_type as ContextType].sampleCount >= 3,
     })
   } catch (err: any) {
     console.error('[feedback]', err)
@@ -106,3 +106,4 @@ feedbackRoutes.get('/stats', (_req, res) => {
     newest_record: stats.newestRecord,
   })
 })
+
