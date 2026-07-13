@@ -1,5 +1,6 @@
 param(
-    [string]$BaseUrl = "http://localhost:7860"
+    [string]$BaseUrl = "http://localhost:7860",
+    [string]$ApiKey = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -7,8 +8,14 @@ $ErrorActionPreference = "Stop"
 $passed = 0
 $failed = 0
 
+$headers = @{}
+if (-not [string]::IsNullOrWhiteSpace($ApiKey)) {
+    $headers["Authorization"] = "Bearer $ApiKey"
+}
+
 function Write-Ok {
     param([string]$Message)
+
     Write-Host "[OK]   $Message" -ForegroundColor Green
     $script:passed++
 }
@@ -18,6 +25,7 @@ function Write-Fail {
         [string]$Message,
         [object]$ErrorObject
     )
+
     Write-Host "[FAIL] $Message" -ForegroundColor Red
     if ($ErrorObject) {
         Write-Host "       $ErrorObject" -ForegroundColor DarkRed
@@ -32,7 +40,16 @@ function Test-Get {
     )
 
     try {
-        $result = Invoke-RestMethod -Uri "$BaseUrl$Path" -Method GET
+        $request = @{
+            Uri    = "$BaseUrl$Path"
+            Method = "GET"
+        }
+
+        if ($script:headers.Count -gt 0) {
+            $request.Headers = $script:headers
+        }
+
+        $result = Invoke-RestMethod @request
         Write-Ok "$Name GET $Path"
         return $result
     }
@@ -51,12 +68,19 @@ function Test-Post {
 
     try {
         $json = $Body | ConvertTo-Json -Depth 10
-        $result = Invoke-RestMethod `
-            -Uri "$BaseUrl$Path" `
-            -Method POST `
-            -ContentType "application/json" `
-            -Body $json
 
+        $request = @{
+            Uri         = "$BaseUrl$Path"
+            Method      = "POST"
+            ContentType = "application/json"
+            Body        = $json
+        }
+
+        if ($script:headers.Count -gt 0) {
+            $request.Headers = $script:headers
+        }
+
+        $result = Invoke-RestMethod @request
         Write-Ok "$Name POST $Path"
         return $result
     }
@@ -69,15 +93,21 @@ function Test-Post {
 Write-Host ""
 Write-Host "G0DM0D3 Runtime Smoke Test" -ForegroundColor Cyan
 Write-Host "Base URL: $BaseUrl" -ForegroundColor Cyan
+
+if ($ApiKey) {
+    Write-Host "Auth: Bearer token provided" -ForegroundColor Cyan
+}
+else {
+    Write-Host "Auth: none" -ForegroundColor Yellow
+}
+
 Write-Host ""
 
-# Basic GET endpoints
 $health = Test-Get -Name "Health" -Path "/v1/health"
 $info   = Test-Get -Name "Info"   -Path "/v1/info"
 $models = Test-Get -Name "Models" -Path "/v1/models"
 $tier   = Test-Get -Name "Tier"   -Path "/v1/tier"
 
-# Validate expected fields
 if ($health -and $health.status -eq "ok") {
     Write-Ok "Health status is ok"
 }
@@ -99,28 +129,37 @@ elseif ($models) {
     Write-Fail "Models endpoint returned empty model list" ($models | ConvertTo-Json -Depth 5)
 }
 
-# POST: AutoTune
+if ($tier -and $tier.tier) {
+    Write-Ok "Tier detected: $($tier.tier)"
+}
+elseif ($tier) {
+    Write-Fail "Tier endpoint returned no tier" ($tier | ConvertTo-Json -Depth 5)
+}
+
 $autotune = Test-Post `
     -Name "AutoTune" `
     -Path "/v1/autotune/analyze" `
     -Body @{
-        message = "Erkläre mir Docker Volumes technisch, aber verständlich."
+        message  = "Erkläre mir Docker Volumes technisch, aber verständlich."
         strategy = "adaptive"
     }
 
 if ($autotune -and $autotune.params -and $autotune.detected_context) {
     Write-Ok "AutoTune detected context: $($autotune.detected_context)"
+
+    if ($autotune.detected_context -eq "chaotic") {
+        Write-Fail "AutoTune incorrectly detected Docker prompt as chaotic" ($autotune | ConvertTo-Json -Depth 10)
+    }
 }
 elseif ($autotune) {
     Write-Fail "AutoTune response missing expected fields" ($autotune | ConvertTo-Json -Depth 5)
 }
 
-# POST: Parseltongue
 $parseltongue = Test-Post `
     -Name "Parseltongue Encode" `
     -Path "/v1/parseltongue/encode" `
     -Body @{
-        text = "This is a test message about hacking and malware."
+        text      = "This is a test message about hacking and malware."
         technique = "leetspeak"
         intensity = "medium"
     }
