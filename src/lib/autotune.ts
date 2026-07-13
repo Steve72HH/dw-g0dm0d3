@@ -126,7 +126,7 @@ const CONTEXT_PATTERNS: Record<ContextType, RegExp[]> = {
   ],
   chaotic: [
     /\b(chaos|random|wild|crazy|absurd|surreal|glitch|corrupt|break|destroy|unleash|madness|void|entropy)\b/i,
-    /[z̷a̸l̵g̶o̷]/,
+    /\p{M}{2,}|z̷a̸l̵g̶o̷/u,
     /\b(gl1tch|h4ck|pwn|1337|l33t)\b/i,
     /(!{3,}|\?{3,}|\.{4,})/  // Excessive punctuation
   ]
@@ -637,3 +637,4 @@ export const PARAM_META: Record<keyof AutoTuneParams, {
     description: 'Multiplicative penalty on repeated tokens. 1.0 = no penalty.'
   }
 }
+
